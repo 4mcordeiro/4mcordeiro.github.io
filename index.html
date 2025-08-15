@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planejamento de Estágio — Cadastro Online</title>
+  <meta name="description" content="Planilha simples para cadastro de grupos de estágio com salvamento na nuvem via Google Apps Script." />
+  <style>
+    :root{
+      --bg:#0f172a; /* slate-900 */
+      --panel:#111827ee; /* gray-900 */
+      --card:#1f2937; /* gray-800 */
+      --muted:#94a3b8; /* slate-400 */
+      --text:#e5e7eb; /* gray-200 */
+      --accent:#2563eb; /* blue-600 */
+      --accent-2:#22c55e; /* green-500 */
+      --danger:#ef4444; /* red-500 */
+      --warning:#eab308; /* yellow-500 */
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background: radial-gradient(1200px 800px at 10% -10%, #1d2a44 0%, transparent 60%),
+                 radial-gradient(1200px 800px at 110% 0%, #3b215a 0%, transparent 60%),
+                 var(--bg);
+      color:var(--text); font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+      display:grid; grid-template-rows:auto 1fr auto; min-height:100vh;
+    }
+    header{
+      position:sticky; top:0; z-index:10; backdrop-filter:saturate(120%) blur(8px);
+      background:linear-gradient(180deg, rgba(17,24,39,0.85), rgba(17,24,39,0.60));
+      border-bottom:1px solid #33415580;
+    }
+    .wrap{max-width:1100px; margin:0 auto; padding:16px 20px}
+    .brand{display:flex; gap:12px; align-items:center}
+    .logo{width:34px; height:34px; border-radius:50%; background:conic-gradient(from 180deg, var(--accent), #7c3aed, var(--accent)); box-shadow:0 0 0 3px #ffffff10}
+    h1{margin:0; font-size:clamp(18px, 2.2vw, 26px)}
+    .toolbar{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+    button, .btn{
+      appearance:none; border:1px solid #334155; background:#0b1220; color:var(--text);
+      padding:10px 14px; border-radius:12px; cursor:pointer; transition:.2s ease; font-weight:600
+    }
+    button:hover, .btn:hover{transform:translateY(-1px); box-shadow:0 8px 20px #00000055}
+    .solid{background:linear-gradient(180deg, #0ea5e9, #2563eb); border-color:#1d4ed8}
+    .good{background:linear-gradient(180deg, #22c55e, #16a34a); border-color:#15803d}
+    .warn{background:linear-gradient(180deg, #f59e0b, #eab308); border-color:#a16207}
+    .danger{background:linear-gradient(180deg, #ef4444, #dc2626); border-color:#b91c1c}
+    main{padding:26px 20px}
+    .card{
+      max-width:1100px; margin:0 auto; background:linear-gradient(180deg, #0b1220, #0b1220), var(--card);
+      border:1px solid #334155aa; border-radius:var(--radius); overflow:hidden; box-shadow:0 30px 80px #00000070
+    }
+    .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 18px; border-bottom:1px solid #33415570}
+    .pill{color:#dbeafe; background:#1e3a8a; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid #3b82f680}
+    .legend{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; padding:14px 18px; border-bottom:1px dashed #33415570; background:#0b1220}
+    .legend div{color:var(--muted); font-size:13px}
+    table{width:100%; border-collapse:separate; border-spacing:0 8px; padding:12px}
+    thead th{position:sticky; top:0; background:#0b1220; z-index:1; text-align:left; padding:10px 12px; color:#cbd5e1; font-size:13px; border-bottom:1px solid #33415570}
+    tbody td{padding:8px 12px}
+    tbody tr{background:#101827; border:1px solid #33415570}
+    tbody tr td:first-child{border-radius:12px 0 0 12px}
+    tbody tr td:last-child{border-radius:0 12px 12px 0}
+    input, select, textarea{
+      width:100%; padding:9px 10px; border-radius:10px; border:1px solid #334155; background:#0b1220; color:var(--text);
+      outline:none; box-shadow:inset 0 1px 0 #ffffff08
+    }
+    textarea{min-height:38px; resize:vertical}
+    .row-actions{display:flex; gap:6px; justify-content:flex-end}
+    footer{color:#94a3b8; text-align:center; padding:18px}
+    .toast{position:fixed; right:18px; bottom:18px; background:#0b1220; border:1px solid #334155; padding:12px 14px; border-radius:12px; box-shadow:0 10px 30px #0008; display:flex; gap:10px; align-items:center; transform:translateY(20px); opacity:0; pointer-events:none; transition:.25s}
+    .toast.show{transform:none; opacity:1; pointer-events:auto}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Planejamento de Estágio</h1>
+          <div style="font-size:13px;color:var(--muted)">Site estático para GitHub Pages com dados sincronizados na nuvem (Google Apps Script)</div>
+        </div>
+      </div>
+      <div class="toolbar" role="toolbar" aria-label="Ações">
+        <button class="solid" id="btnAdd">+ Adicionar linha</button>
+        <button class="good" id="btnSave">Salvar agora</button>
+        <button class="btn" id="btnReload">Recarregar da nuvem</button>
+        <button class="btn" id="btnExportCsv">Exportar CSV</button>
+        <button class="warn" id="btnImport">Importar CSV</button>
+        <button class="danger" id="btnClear">Limpar tudo (local)</button>
+        <span id="status" style="margin-left:auto;color:#93c5fd"></span>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="card">
+      <div class="card-head">
+        <div style="font-weight:700">Cadastro de Grupos</div>
+        <span class="pill" id="cloudState">offline</span>
+      </div>
+      <div class="legend">
+        <div><strong>Dica:</strong> Cada grupo pode ter até 6 alunos. Use o campo <em>Grupo</em> para identificar (ex.: G1, G2...).</div>
+        <div>Os dados ficam salvos em <em>localStorage</em> (backup) e na nuvem via Google Apps Script (compartilhado).</div>
+      </div>
+      <div style="overflow:auto">
+        <table id="grid" aria-label="Planilha de grupos de estágio">
+          <thead>
+            <tr>
+              <th style="width:220px">Aluno</th>
+              <th>Estágio / Campo</th>
+              <th style="width:220px">Professor Supervisor</th>
+              <th style="width:90px">Grupo</th>
+              <th>Observações</th>
+              <th style="width:130px; text-align:right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+  <footer>
+    Publicado em <strong>GitHub Pages</strong>. Última sincronização: <span id="lastSync">—</span>
+  </footer>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="filePicker" accept=".csv" hidden />
+  <script>
+    // ====== CONFIGURAÇÃO ======
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0Rby71MbD-8n8FwqcbbyxcRttRJCfsCAPXmmIinXpXHqOqe7RWeXXdF4e64Lnd9hd/exec";
+    const COLLECTION = "planejamento_estagio";
+    const HEADERS = ["aluno", "campo", "professor", "grupo", "obs"];
+    // ====== UTIL ======
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+    function toast(msg){
+      const t = $("#toast");
+      t.textContent = msg; t.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(()=>t.classList.remove("show"), 2200);
+    }
+    function setStatus(text, color){
+      const el = $("#status");
+      el.textContent = text || "";
+      if(color) el.style.color = color;
+    }
+    function nowISO(){ return new Date().toLocaleString(); }
+    function rowTemplate(row = {}){
+      return `<tr>
+        <td><input aria-label="Aluno" value="${row.aluno||""}"></td>
+        <td><input aria-label="Estágio ou Campo" value="${row.campo||""}"></td>
+        <td><input aria-label="Professor Supervisor" value="${row.professor||""}"></td>
+        <td><input aria-label="Grupo" value="${row.grupo||""}"></td>
+        <td><textarea aria-label="Observações">${row.obs||""}</textarea></td>
+        <td>
+          <div class="row-actions">
+            <button class="btn" data-act="dup">Duplicar</button>
+            <button class="danger" data-act="del">Excluir</button>
+          </div>
+        </td>
+      </tr>`;
+    }
+    function render(data = []){ const tbody = $("#tbody"); tbody.innerHTML = data.map(rowTemplate).join(""); }
+    function readGrid(){
+      const rows = [];
+      $$("#tbody tr").forEach(tr =>{
+        const [aluno, campo, professor, grupo] = tr.querySelectorAll("input");
+        const obs = tr.querySelector("textarea");
+        rows.push({ aluno: aluno.value.trim(), campo: campo.value.trim(), professor: professor.value.trim(), grupo: grupo.value.trim(), obs: (obs.value||"").trim() });
+      });
+      return rows;
+    }
+    function addRow(prefill={}){ $("#tbody").insertAdjacentHTML("beforeend", rowTemplate(prefill)); }
+    function clearAllLocal(){ localStorage.removeItem("estagio:data"); toast("Dados locais limpos. Os dados na nuvem permanecem."); }
+    function saveLocal(data){ localStorage.setItem("estagio:data", JSON.stringify({updatedAt:Date.now(), data})); $("#lastSync").textContent = nowISO(); }
+    function loadLocal(){ try{ const raw = localStorage.getItem("estagio:data"); if(!raw) return null; const json = JSON.parse(raw); return json?.data || null; }catch(e){ return null; } }
+    // ====== INTEGRAÇÃO COM GOOGLE APPS SCRIPT ======
+    async function cloudLoad(){
+      const url = new URL(SCRIPT_URL);
+      url.searchParams.set("action", "load");
+      url.searchParams.set("collection", COLLECTION);
+      setStatus("Carregando da nuvem…");
+      $("#cloudState").textContent = "carregando";
+      try{
+        const res = await fetch(url, { method:"GET", mode:"cors" });
+        const json = await res.json();
+        if(json && json.data){
+          setStatus("Dados carregados da nuvem.", "#86efac");
+          $("#cloudState").textContent = "online";
+          return json.data;
+        } else {
+          setStatus("Nuvem respondeu sem dados.", "#fca5a5");
+          $("#cloudState").textContent = "online";
+          return [];
+        }
+      }catch(err){
+        console.error(err);
+        setStatus("Falha ao carregar da nuvem. Usando dados locais.", "#fca5a5");
+        $("#cloudState").textContent = "offline";
+        return null;
+      }
+    }
+    async function cloudSave(data){
+      setStatus("Salvando na nuvem…");
+      try{
+        const res = await fetch(SCRIPT_URL, {
+          method:"POST",
+          mode:"cors",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ action:"save", collection: COLLECTION, data })
+        });
+        const json = await res.json().catch(()=>({}));
+        if(res.ok){
+          setStatus("Salvo na nuvem.", "#86efac");
+          $("#cloudState").textContent = "online";
+          $("#lastSync").textContent = nowISO();
+          toast("✅ Alterações sincronizadas");
+          return true;
+        } else {
+          throw new Error(json?.message || "Falha no salvamento");
+        }
+      }catch(err){
+        console.error(err);
+        setStatus("Falha ao salvar na nuvem — guardado localmente.", "#fca5a5");
+        $("#cloudState").textContent = "offline";
+        toast("⚠️ Erro ao salvar na nuvem. Dados salvos localmente.");
+        return false;
+      }
+    }
+    // ====== CSV ======
+    function toCSV(rows){
+      const esc = (v)=>`"${(v??"").toString().replaceAll("\"","\"\"")}"`;
+      const header = HEADERS.map(esc).join(",");
+      const lines = rows.map(r => HEADERS.map(k => esc(r[k])).join(","));
+      return [header, ...lines].join("\n");
+    }
+    function download(filename, content){
+      const blob = new Blob([content], {type:"text/csv;charset=utf-8"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function importCSV(text){
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      if(lines.length===0) return [];
+      const hdr = lines.shift().split(",").map(h=>h.replace(/^\"|\"$/g,"").toLowerCase());
+      const idx = HEADERS.map(h => hdr.indexOf(h));
+      const data = lines.map(line =>{
+        const cols = line.match(/\"(?:[^\"]|\"\")*\"|[^,]+/g)?.map(c=>c.replace(/^\"|\"$/g,"").replaceAll('""','"')) || [];
+        const row = {};
+        HEADERS.forEach((h,i)=>{ row[h] = cols[idx[i]] ?? ""; });
+        return row;
+      });
+      return data;
+    }
+    // ====== EVENTOS ======
+    document.addEventListener("click", (e)=>{
+      const t = e.target;
+      if(t.id==="btnAdd"){ addRow(); }
+      if(t.id==="btnSave"){ cloudSave(readGrid()).then(ok=> ok && saveLocal(readGrid())); }
+      if(t.id==="btnReload"){ init(true); }
+      if(t.id==="btnExportCsv"){ download("planejamento-estagio.csv", toCSV(readGrid())); }
+      if(t.id==="btnImport"){ $("#filePicker").click(); }
+      if(t.id==="btnClear"){ if(confirm("Tem certeza? Isso limpa apenas o cache local.")) { clearAllLocal(); } }
+      if(t.dataset.act==="del"){ t.closest("tr").remove(); }
+      if(t.dataset.act==="dup"){ const row = t.closest("tr");
+        const inputs = row.querySelectorAll("input,textarea");
+        const data = { aluno:inputs[0].value, campo:inputs[1].value, professor:inputs[2].value, grupo:inputs[3].value, obs:inputs[4].value };
+        addRow(data);
+      }
+    });
+    $("#filePicker").addEventListener("change", async (e)=>{
+      const file = e.target.files?.[0]; if(!file) return;
+      const text = await file.text();
+      const data = importCSV(text); render(data); saveLocal(data); toast("CSV importado");
+      e.target.value = "";
+    });
+    // Auto-save local e sync leve
+    let saveDebounce;
+    document.addEventListener("input", ()=>{
+      clearTimeout(saveDebounce);
+      saveDebounce = setTimeout(()=>{
+        const data = readGrid();
+        saveLocal(data);
+        cloudSave(data);
+      }, 800);
+    });
+    // ====== BOOT ======
+    async function init(forceCloud=false){
+      setStatus("");
+      let data = null;
+      if(forceCloud){
+        data = await cloudLoad();
+      } else {
+        data = await cloudLoad();
+        if(data===null){ data = loadLocal(); }
+      }
+      if(!data || !Array.isArray(data) || data.length===0){ data = [{}]; }
+      render(data);
+      $("#lastSync").textContent = nowISO();
+    }
+    init();
+  </script>
+</body>
+</html>
