@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planejamento de Distribuição de Alunos – Estágio</title>
+  <style>
+    :root{
+      --bg:#0f172a;           /* slate-900 */
+      --panel:#111827;        /* gray-900 */
+      --card:#0b1224;         /* custom deep */
+      --muted:#cbd5e1;        /* slate-300 */
+      --text:#e5e7eb;         /* gray-200 */
+      --accent:#38bdf8;       /* sky-400 */
+      --accent-2:#22c55e;     /* green-500 */
+      --warn:#f59e0b;         /* amber-500 */
+      --danger:#ef4444;       /* red-500 */
+      --outline:#1f2937;      /* gray-800 */
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#0a1020);color:var(--text);font:15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"}
+    header{position:sticky;top:0;z-index:10;background:rgba(10,16,32,.8);backdrop-filter:blur(8px);border-bottom:1px solid var(--outline)}
+    .wrap{max-width:1300px;margin:0 auto;padding:16px 20px}
+    h1{font-size:22px;margin:0 0 6px}
+    .sub{color:var(--muted);font-size:13px}
+    .bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button{background:var(--accent);color:#001018;border:0;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;transition:.2s;box-shadow:0 6px 16px rgba(56,189,248,.25)}
+    button:hover{transform:translateY(-1px)}
+    .ghost{background:transparent;color:var(--text);border:1px solid var(--outline);box-shadow:none}
+    main{display:grid;grid-template-columns:320px 1fr;gap:16px;max-width:1300px;margin:18px auto;padding:0 20px}
+    @media (max-width: 980px){main{grid-template-columns:1fr}}
+    aside{background:linear-gradient(180deg,var(--panel),#0a1223);border:1px solid var(--outline);border-radius:16px;padding:16px;position:sticky;top:84px;height:max-content}
+    aside h2{font-size:14px;margin:6px 0 12px;color:#c7d2fe}
+    .quota{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px;padding:10px;border:1px dashed var(--outline);border-radius:12px}
+    .quota .pill{font:600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono";background:#0e1b38;color:#a5b4fc;padding:6px 10px;border-radius:999px;display:inline-block}
+    .panel{background:linear-gradient(180deg,var(--panel),#0b1224);border:1px solid var(--outline);border-radius:16px;overflow:hidden}
+    .panel-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--outline)}
+    .panel-header h2{font-size:15px;margin:0}
+    .list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;padding:10px}
+    .tag{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--outline);padding:8px 10px;border-radius:12px}
+    .tag small{opacity:.75}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#0b1224;border-bottom:1px solid var(--outline);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#a3a3a3;padding:12px;backdrop-filter:blur(6px)}
+    tbody td{border-bottom:1px solid var(--outline);padding:10px}
+    tr:hover{background:rgba(56,189,248,.06)}
+    select, input[type="text"]{width:100%;background:#0a1020;border:1px solid #1c2540;color:var(--text);border-radius:10px;padding:8px 10px;appearance:none}
+    .row-id{font-weight:700;color:#bae6fd}
+    .pill-cnt{font:700 12px/1 ui-monospace;background:#082f49;color:#67e8f9;padding:6px 10px;border-radius:999px;display:inline-block}
+    .status{font-size:12px}
+    .ok{color:var(--accent-2)}
+    .warn{color:var(--warn)}
+    .err{color:var(--danger)}
+    .footer{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;padding:12px;border-top:1px solid var(--outline);color:var(--muted);font-size:12px}
+    .kbd{font:600 11px/1.2 ui-monospace;background:#0e1b38;color:#c7d2fe;padding:6px 8px;border-radius:8px;border:1px solid #1d2b57}
+    .help{color:#9ca3af}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <!-- Cabeçalho -->
+  <header>
+    <div class="wrap">
+      <h1>Planejamento de Distribuição de Alunos – Estágio</h1>
+      <div class="sub">Preencha <strong>Professor</strong>, o campo <strong>Estágio (tema/local)</strong> e selecione até <strong>6 integrantes</strong> por grupo. Evite duplicidades: o sistema avisa e bloqueia alunos já alocados.</div>
+      <div class="bar">
+        <button id="btnExport" title="Exportar para Excel (.xlsx)">⬇️ Exportar XLSX</button>
+        <button class="ghost" id="btnClear" title="Limpar preenchimento e recomeçar">🧹 Limpar</button>
+        <button class="ghost" id="btnSave" title="Salvar no navegador (localStorage)">💾 Salvar</button>
+        <span class="help">Dica: o progresso é salvo automaticamente; use <span class="kbd">Ctrl/Cmd + S</span> para salvar manualmente.</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Conteúdo principal -->
+  <main>
+    <!-- Lateral -->
+    <aside>
+      <h2>Resumo & Regras</h2>
+      <div class="quota">
+        <div>Limite de grupos por professor</div>
+        <div class="pill" id="quotaTot">0/8</div>
+      </div>
+      <div id="qList"></div>
+
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-header">
+          <h2>Alunos não alocados</h2>
+          <div class="pill-cnt" id="unaCnt">0</div>
+        </div>
+        <div class="list" id="unaList"></div>
+      </div>
+
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-header">
+          <h2>Alertas</h2>
+        </div>
+        <div class="list" id="alerts"></div>
+      </div>
+    </aside>
+
+    <!-- Tabela -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Grupos de Estágio (máx. 8)</h2>
+        <div class="help">IDs dos grupos: G1–G8</div>
+      </div>
+      <div style="overflow:auto">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th style="width:70px">Grupo</th>
+              <th style="width:180px">Professor Supervisor</th>
+              <th>Estágio (tema / local)</th>
+              <th style="width:140px">Integrante 1</th>
+              <th style="width:140px">Integrante 2</th>
+              <th style="width:140px">Integrante 3</th>
+              <th style="width:140px">Integrante 4</th>
+              <th style="width:140px">Integrante 5</th>
+              <th style="width:140px">Integrante 6</th>
+              <th style="width:90px">Tamanho</th>
+              <th style="width:220px">Status</th>
+            </tr>
+          </thead>
+          <tbody id="body"></tbody>
+        </table>
+      </div>
+      <div class="footer">
+        <div>
+          <span class="kbd">Tab</span> navega pelos campos • <span class="kbd">Shift + Tab</span> volta. O cabeçalho fica fixo.
+        </div>
+        <div>Último salvamento: <span id="lastSave">—</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+  <html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planejamento de Distribuição de Alunos – Estágio</title>
+  <style>
+    :root{
+      --bg:#0f172a;           /* slate-900 */
+      --panel:#111827;        /* gray-900 */
+      --card:#0b1224;         /* custom deep */
+      --muted:#cbd5e1;        /* slate-300 */
+      --text:#e5e7eb;         /* gray-200 */
+      --accent:#38bdf8;       /* sky-400 */
+      --accent-2:#22c55e;     /* green-500 */
+      --warn:#f59e0b;         /* amber-500 */
+      --danger:#ef4444;       /* red-500 */
+      --outline:#1f2937;      /* gray-800 */
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#0a1020);color:var(--text);font:15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"}
+    header{position:sticky;top:0;z-index:10;background:rgba(10,16,32,.8);backdrop-filter:blur(8px);border-bottom:1px solid var(--outline)}
+    .wrap{max-width:1300px;margin:0 auto;padding:16px 20px}
+    h1{font-size:22px;margin:0 0 6px}
+    .sub{color:var(--muted);font-size:13px}
+    .bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button{background:var(--accent);color:#001018;border:0;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;transition:.2s;box-shadow:0 6px 16px rgba(56,189,248,.25)}
+    button:hover{transform:translateY(-1px)}
+    .ghost{background:transparent;color:var(--text);border:1px solid var(--outline);box-shadow:none}
+
+    main{display:grid;grid-template-columns:320px 1fr;gap:16px;max-width:1300px;margin:18px auto;padding:0 20px}
+    @media (max-width: 980px){main{grid-template-columns:1fr}}
+
+    aside{background:linear-gradient(180deg,var(--panel),#0a1223);border:1px solid var(--outline);border-radius:16px;padding:16px;position:sticky;top:84px;height:max-content}
+    aside h2{font-size:14px;margin:6px 0 12px;color:#c7d2fe}
+    .quota{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px;padding:10px;border:1px dashed var(--outline);border-radius:12px}
+    .quota .pill{font:600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono";background:#0e1b38;color:#a5b4fc;padding:6px 10px;border-radius:999px;display:inline-block}
+
+    .panel{background:linear-gradient(180deg,var(--panel),#0b1224);border:1px solid var(--outline);border-radius:16px;overflow:hidden}
+    .panel-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--outline)}
+    .panel-header h2{font-size:15px;margin:0}
+
+    .list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;padding:10px}
+    .tag{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--outline);padding:8px 10px;border-radius:12px}
+    .tag small{opacity:.75}
+
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#0b1224;border-bottom:1px solid var(--outline);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#a3a3a3;padding:12px;backdrop-filter:blur(6px)}
+    tbody td{border-bottom:1px solid var(--outline);padding:10px}
+    tr:hover{background:rgba(56,189,248,.06)}
+
+    select, input[type="text"]{width:100%;background:#0a1020;border:1px solid #1c2540;color:var(--text);border-radius:10px;padding:8px 10px;appearance:none}
+    .row-id{font-weight:700;color:#bae6fd}
+    .pill-cnt{font:700 12px/1 ui-monospace;background:#082f49;color:#67e8f9;padding:6px 10px;border-radius:999px;display:inline-block}
+    .status{font-size:12px}
+    .ok{color:var(--accent-2)}
+    .warn{color:var(--warn)}
+    .err{color:var(--danger)}
+
+    .footer{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;padding:12px;border-top:1px solid var(--outline);color:var(--muted);font-size:12px}
+    .kbd{font:600 11px/1.2 ui-monospace;background:#0e1b38;color:#c7d2fe;padding:6px 8px;border-radius:8px;border:1px solid #1d2b57}
+    .help{color:#9ca3af}
+  </style>
+  <!-- Biblioteca para exportar em .xlsx -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Planejamento de Distribuição de Alunos – Estágio</h1>
+      <div class="sub">Preencha <strong>Professor</strong>, o campo <strong>Estágio (tema/local)</strong> e selecione até <strong>6 integrantes</strong> por grupo. Evite duplicidades: o sistema avisa e bloqueia alunos já alocados.</div>
+      <div class="bar">
+        <button id="btnExport" title="Exportar para Excel (.xlsx)">⬇️ Exportar XLSX</button>
+        <button class="ghost" id="btnClear" title="Limpar preenchimento e recomeçar">🧹 Limpar</button>
+        <button class="ghost" id="btnSave" title="Salvar no navegador (localStorage)">💾 Salvar</button>
+        <span class="help">Dica: o progresso é salvo automaticamente; use <span class="kbd">Ctrl/Cmd + S</span> para salvar manualmente.</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <h2>Resumo & Regras</h2>
+      <div class="quota">
+        <div>Limite de grupos por professor</div>
+        <div class="pill" id="quotaTot">0/8</div>
+      </div>
+      <div id="qList"></div>
+
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-header">
+          <h2>Alunos não alocados</h2>
+          <div class="pill-cnt" id="unaCnt">0</div>
+        </div>
+        <div class="list" id="unaList"></div>
+      </div>
+
+      <div class="panel" style="margin-top:14px;">
+        <div class="panel-header">
+          <h2>Alertas</h2>
+        </div>
+        <div class="list" id="alerts"></div>
+      </div>
+    </aside>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Grupos de Estágio (máx. 8)</h2>
+        <div class="help">IDs dos grupos: G1–G8</div>
+      </div>
+      <div style="overflow:auto">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th style="width:70px">Grupo</th>
+              <th style="width:180px">Professor Supervisor</th>
+              <th>Estágio (tema / local)</th>
+              <th style="width:140px">Integrante 1</th>
+              <th style="width:140px">Integrante 2</th>
+              <th style="width:140px">Integrante 3</th>
+              <th style="width:140px">Integrante 4</th>
+              <th style="width:140px">Integrante 5</th>
+              <th style="width:140px">Integrante 6</th>
+              <th style="width:90px">Tamanho</th>
+              <th style="width:220px">Status</th>
+            </tr>
+          </thead>
+          <tbody id="body"></tbody>
+        </table>
+      </div>
+      <div class="footer">
+        <div>
+          <span class="kbd">Tab</span> navega pelos campos • <span class="kbd">Shift + Tab</span> volta. O cabeçalho fica fixo.
+        </div>
+        <div>Último salvamento: <span id="lastSave">—</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+  // ===== DADOS =====
+  const STUDENTS = [
+    "ADRIANE GOUVEIA MARQUES DOS SANTOS",
+    "AMANDA CAROLINE BORGES SOUZA DE BELÉM",
+    "AMANDA VENÂNCIO DE SANTANA",
+    "ANA CAROLINA ANTUNES DA SILVA",
+    "ANA JÉSSICA DO CARMO SILVA RODRIGUES DE BRITO",
+    "ANA JULIA OLIVEIRA SILVA",
+    "ANA LUIZA AMORIM VICENTE",
+    "ANA MAXCILENE SEVERIANO",
+    "ANA VITORIA DA ROCHA SOUSA",
+    "ANTONIO MARCOS MARTINS CUNHA",
+    "ARTHUR OLIVEIRA MACHADO",
+    "CRISTHIANE CAMIN NERY",
+    "EDUARDA ABADIA GOMES DE JESUS",
+    "FERNANDA GONÇALVES DOS SANTOS",
+    "GABRIELA NUNES ANDRADE",
+    "GISELE ROGERIO DA SILVA ZANDONÁ",
+    "GUILHERME FREITAS CARVALHO",
+    "HUGO ELIAS ALBERTO MOREIRA ARRUDA",
+    "ISABELLA ILIDIO BRIZOLLA",
+    "JOANA DARC DELFINO DE MENEZES",
+    "KAUANNY ALVES DE MORAIS",
+    "LAURA BARBOSA ALVES",
+    "LUANA OLIVEIRA ZUCHETTI",
+    "LUCAS REIS E SOUSA",
+    "LUÍSA EVANGELISTA NUNES MIRANDA",
+    "MARIA DA CONCEIÇÃO SOUZA DA SILVA",
+    "MARIA EDUARDA DE SANTANA",
+    "MARIA EDUARDA NASCIMENTO RODRIGUES",
+    "MARIA EDUARDA ROCHA DA COSTA",
+    "MARIA JULIA ISMERIA REIS",
+    "MARIANA CARLOS RODRIGUES",
+    "MARITZA MACHADO DE SÁ",
+    "MIRENIA MAGALHAES MESSIAS BATISTA",
+    "NATALIA NABI SILVA MAMERI",
+    "PEDRO GUSTAVO SILVA RIBEIRO",
+    "POLIANA VIEIRA MARQUES NASCIMENTO",
+    "PRISCILA TAVELLI MELO STARLING DE FREITAS",
+    "RAPHAEL CAMILO RIBEIRO",
+    "VALDENICE HELENA DUARTE",
+    "YASMIN ALVES COSTA"
+  ];
+
+  const PROFESSORES = [
+    { nome: "Diogo", grupos: 2 },
+    { nome: "Milene", grupos: 2 },
+    { nome: "Isaura", grupos: 2 }, // "2 grupo" interpretado como 2 grupos
+    { nome: "Wilian", grupos: 2 }
+  ];
+
+  const GROUP_IDS = ["G1","G2","G3","G4","G5","G6","G7","G8"]; // 8 grupos totais
+
+  // ===== HELPERS =====
+  const $ = (q, el=document) => el.querySelector(q);
+  const $$ = (q, el=document) => Array.from(el.querySelectorAll(q));
+
+  function optionEl(value, label=value){
+    const o = document.createElement('option');
+    o.value = value; o.textContent = label; return o;
+  }
+
+  function buildProfessorSelect(){
+    const sel = document.createElement('select');
+    sel.className = 'prof-select';
+    sel.appendChild(optionEl('', '—'));
+    for(const p of PROFESSORES){ sel.appendChild(optionEl(p.nome)); }
+    sel.addEventListener('change', recalcAll);
+    return sel;
+  }
+
+  function buildStudentSelect(){
+    const sel = document.createElement('select');
+    sel.className = 'member-select';
+    sel.appendChild(optionEl('', '—'));
+    for(const s of STUDENTS){ sel.appendChild(optionEl(s)); }
+    sel.addEventListener('change', recalcAll);
+    return sel;
+  }
+
+  function buildRow(id){
+    const tr = document.createElement('tr');
+    tr.dataset.gid = id;
+    tr.innerHTML = `
+      <td class="row-id">${id}</td>
+      <td></td>
+      <td><input type="text" placeholder="Ex.: UBS Centro – Saúde da Família / Avaliação Psicológica" /></td>
+      <td></td><td></td><td></td><td></td><td></td><td></td>
+      <td class="size"><span class="pill-cnt">0</span></td>
+      <td class="status"><span class="warn">Aguardando preenchimento…</span></td>`;
+    const profCell = tr.children[1];
+    profCell.appendChild(buildProfessorSelect());
+    for(let i=3;i<=8;i++) tr.children[i].appendChild(buildStudentSelect());
+    return tr;
+  }
+
+  function loadInitial(){
+    const tbody = $('#body');
+    GROUP_IDS.forEach(id => tbody.appendChild(buildRow(id)));
+    renderQuotas();
+    restoreFromStorage();
+    recalcAll();
+  }
+
+  // ===== LÓGICA =====
+  function getData(){
+    const groups = GROUP_IDS.map(gid => {
+      const row = $(`tr[data-gid="${gid}"]`);
+      const prof = $('select.prof-select', row).value.trim();
+      const estagio = $('input[type="text"]', row).value.trim();
+      const members = $$('.member-select', row).map(s => s.value.trim()).filter(Boolean);
+      return { gid, prof, estagio, members };
+    });
+    return groups;
+  }
+
+  function setData(groups){
+    for(const g of groups){
+      const row = $(`tr[data-gid="${g.gid}"]`);
+      if(!row) continue;
+      $('select.prof-select', row).value = g.prof || '';
+      $('input[type="text"]', row).value = g.estagio || '';
+      const sels = $$('.member-select', row);
+      sels.forEach((sel,i)=>{ sel.value = g.members?.[i] || ''; });
+    }
+  }
+
+  function recalcAll(){
+    const groups = getData();
+
+    // Selecionados únicos (para bloquear duplicidade)
+    const selected = new Set();
+    const duplicates = new Map(); // aluno -> [gid]
+
+    for(const g of groups){
+      const seenRow = new Set();
+      for(const m of g.members){
+        if(selected.has(m)){
+          const list = duplicates.get(m) || [];
+          if(!list.includes(g.gid)) list.push(g.gid);
+          duplicates.set(m, list);
+        } else {
+          selected.add(m);
+        }
+        // duplicidade na mesma linha
+        if(seenRow.has(m)){
+          const list = duplicates.get(m) || [];
+          if(!list.includes(g.gid)) list.push(g.gid);
+          duplicates.set(m, list);
+        } else {
+          seenRow.add(m);
+        }
+      }
+    }
+
+    // Bloquear opções já usadas
+    $$('.member-select').forEach(sel => {
+      const cur = sel.value;
+      Array.from(sel.options).forEach(opt => {
+        if(!opt.value) return; // "—"
+        opt.disabled = (selected.has(opt.value) && opt.value !== cur);
+      });
+    });
+
+    // Contagem por professor
+    const profQuota = Object.fromEntries(PROFESSORES.map(p=>[p.nome,p.grupos]));
+    const profCount = Object.fromEntries(PROFESSORES.map(p=>[p.nome,0]));
+
+    for(const g of groups){ if(g.prof && g.members.length>0){ profCount[g.prof]++; } }
+
+    // Atualizar quota cards
+    let usedGroups = 0;
+    const qList = document.createElement('div');
+    for(const p of PROFESSORES){
+      const used = profCount[p.nome] || 0;
+      usedGroups += used;
+      const item = document.createElement('div');
+      item.className = 'quota';
+      item.innerHTML = `<div><strong>${p.nome}</strong><br/><small class="${used>p.grupos?'err':'ok'}">${used>p.grupos?'Excedido':'Dentro do limite'}</small></div>
+                        <div class="pill">${used}/${p.grupos}</div>`;
+      qList.appendChild(item);
+    }
+    $('#qList').innerHTML = qList.innerHTML;
+    $('#quotaTot').textContent = `${usedGroups}/8`;
+
+    // Atualizar linhas (tamanho + status)
+    for(const g of groups){
+      const row = $(`tr[data-gid="${g.gid}"]`);
+      $('.pill-cnt', row).textContent = g.members.length;
+      const msgs = [];
+      if(!g.prof && g.members.length>0){ msgs.push(`<span class="warn">Selecione um professor</span>`); }
+      if(g.members.length===0 && (g.prof || g.estagio)){ msgs.push(`<span class="warn">Sem integrantes</span>`); }
+      if(g.prof && profCount[g.prof] > profQuota[g.prof]){ msgs.push(`<span class="err">Limite de grupos para ${g.prof} excedido</span>`); }
+      // duplicidades envolvendo este grupo
+      const dupThis = [];
+      for(const [aluno, gids] of duplicates){ if(gids.includes(g.gid)) dupThis.push(aluno); }
+      if(dupThis.length){ msgs.push(`<span class="err">Duplicados: ${dupThis.join(', ')}</span>`); }
+      if(!msgs.length){ msgs.push(`<span class="ok">OK</span>`); }
+      $('.status', row).innerHTML = msgs.join(' • ');
+    }
+
+    // Alunos não alocados
+    const unassigned = STUDENTS.filter(s => !selected.has(s));
+    $('#unaCnt').textContent = unassigned.length;
+    $('#unaList').innerHTML = unassigned.map(s => `<div class="tag">👤 <span>${s}</span></div>`).join('');
+
+    // Alertas gerais
+    const alerts = [];
+    for(const [p, cnt] of Object.entries(profCount)){
+      const lim = profQuota[p];
+      if(cnt>lim){ alerts.push(`Professor ${p}: ${cnt}/${lim} grupos (excedido)`); }
+    }
+    for(const [aluno, gids] of duplicates){ alerts.push(`Aluno(a) ${aluno} alocado(a) em múltiplos grupos: ${Array.from(new Set(gids)).join(', ')}`); }
+    $('#alerts').innerHTML = alerts.length ? alerts.map(a=>`<div class="tag">⚠️ <span>${a}</span></div>`).join('') : `<div class="tag"><small>Sem alertas no momento.</small></div>`;
+
+    autoSave();
+  }
+
+  // ===== PERSISTÊNCIA =====
+  const LS_KEY = 'planejamento-estagio-v1';
+  let saveTimer = null;
+
+  function autoSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>{
+      const data = getData();
+      localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), groups: data }));
+      $('#lastSave').textContent = new Date().toLocaleString();
+    }, 250);
+  }
+
+  function restoreFromStorage(){
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return;
+    try{
+      const obj = JSON.parse(raw);
+      if(obj?.groups) setData(obj.groups);
+      if(obj?.ts) $('#lastSave').textContent = new Date(obj.ts).toLocaleString();
+    }catch{ /* ignore */ }
+  }
+
+  // ===== EXPORTAÇÃO XLSX =====
+  function exportXLSX(){
+    const groups = getData();
+
+    // Sheet: Grupos
+    const rows = [["Grupo","Professor","Estágio","Integrante 1","Integrante 2","Integrante 3","Integrante 4","Integrante 5","Integrante 6","Tamanho"]];
+    for(const g of groups){
+      const line = [g.gid, g.prof, g.estagio];
+      for(let i=0;i<6;i++){ line.push(g.members[i]||''); }
+      line.push(g.members.length);
+      rows.push(line);
+    }
+
+    // Sheet: Resumo
+    const profQuota = Object.fromEntries(PROFESSORES.map(p=>[p.nome,p.grupos]));
+    const profCount = Object.fromEntries(PROFESSORES.map(p=>[p.nome,0]));
+    for(const g of groups){ if(g.prof && g.members.length>0){ profCount[g.prof]++; } }
+
+    const selected = new Set();
+    const duplicates = new Map();
+    for(const g of groups){
+      for(const m of g.members){
+        if(selected.has(m)){
+          const arr = duplicates.get(m) || [];
+          arr.push(g.gid); duplicates.set(m, arr);
+        } else selected.add(m);
+      }
+    }
+
+    const resumo = [["Professor","Grupos usados","Limite","Situação"], ...PROFESSORES.map(p=>{
+      const used = profCount[p.nome];
+      return [p.nome, used, p.grupos, used>p.grupos?"EXCEDIDO":"OK"];
+    })];
+
+    // Sheet: Alunos
+    const mapaAlunos = new Map(STUDENTS.map(s=>[s,{ grupos:[] }]));
+    for(const g of groups){
+      for(const m of g.members){
+        const entry = mapaAlunos.get(m); entry.grupos.push(`${g.gid}${g.prof?` (${g.prof})`:''}`);
+      }
+    }
+    const alunosSheet = [["Aluno(a)","Grupo(s)"]];
+    for(const s of STUDENTS){
+      const gs = mapaAlunos.get(s).grupos;
+      alunosSheet.push([s, gs.join(' | ')]);
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Grupos');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumo), 'Resumo');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(alunosSheet), 'Alunos');
+
+    XLSX.writeFile(wb, 'Planejamento_Estagio.xlsx');
+  }
+
+  // ===== AÇÕES =====
+  document.addEventListener('DOMContentLoaded', loadInitial);
+  $('#btnExport')?.addEventListener('click', exportXLSX);
+  $('#btnClear')?.addEventListener('click', ()=>{
+    localStorage.removeItem(LS_KEY);
+    setData(GROUP_IDS.map(gid=>({gid, prof:'', estagio:'', members:[]})));
+    recalcAll();
+  });
+  $('#btnSave')?.addEventListener('click', autoSave);
+
+  function renderQuotas(){
+    const qList = $('#qList'); qList.innerHTML = '';
+    for(const p of PROFESSORES){
+      const item = document.createElement('div');
+      item.className = 'quota';
+      item.innerHTML = `<div><strong>${p.nome}</strong><br/><small>Limite: ${p.grupos} grupos</small></div>
+                        <div class="pill">0/${p.grupos}</div>`;
+      qList.appendChild(item);
+    }
+  }
+</script>
+</body>
+</html>
